@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block head %}
+<title> Register </title>
+{% endblock %}
+{% block body %}
+		<div class="wrapper">
+        <h2>Register</h2>
+        <p>Please fill in your credentials to register.</p>
+        <form action="/register" method="post">
+            <div class="form-group">
+                <label>User name</label>
+                <input autocomplete="off" autofocus placeholder="User Name" name="username" type="text">
+                <span class="help-block"></span>
+            </div>    
+            <div class="form-group">
+                <label>Password</label>
+                <input autocomplete="off" autofocus placeholder="Password" name="password" type="password">
+                <span class="help-block"></span>
+            </div>
+			<div class="form-group">
+                <label>Retype Your Password</label>
+                <input autocomplete="off" autofocus placeholder="Retype Your Password" name="password2" type="password">
+                <span class="help-block"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" class="btn btn-primary" value="Register">
+            </div>
+            <p>Have you an account? <a href="/login">Login now</a>.</p>
+        </form>
+		</div>    
+{% endblock %}

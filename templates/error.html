@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block head %}
+<title> Redirecting </title>
+{% endblock %}
+{% block body %}
+	<div style="text-align: center; padding-top: 50px;">
+	<p style="font: 30px 'Montserrat';">
+	{{ message }}
+	<br>
+	You will be redirected to homepage in 2 seconds
+	</br>
+	</p>
+	</div>
+	<script>    
+     window.setTimeout(function(){
+
+       window.location.href = "/{{ redirect }}";
+
+       }, 2000);
+
+ </script>
+{% endblock %}
