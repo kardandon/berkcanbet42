@@ -34,7 +34,7 @@ def db_initial():
     query_db("CREATE TABLE IF NOT EXISTS quiz(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, active BIT, result BIT, name INTEGER NOT NULL, date DATETIME, pool INTEGER)")
     query_db("CREATE TABLE IF NOT EXISTS quiz_bets(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, quiz_id INTEGER REFERENCES quiz(id), user_id INTEGER REFERENCES users(id), bet INTEGER, choice BIT)")
     u = query_db("SELECT * FROM users WHERE user_name='emre'")
-    if len(u) == 0:
-        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        query_db("INSERT INTO users (user_name, password_hash, date, color, currency, win, total) VALUES ( ? , ?, ?, ?, ?, 0, 0);", ("emre", generate_password_hash("123"), now, str(binascii.b2a_hex(os.urandom(3)))[2:-1], 5000, ))
+    #if len(u) == 0:
+        #now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        #query_db("INSERT INTO users (user_name, password_hash, date, color, currency, win, total) VALUES ( ? , ?, ?, ?, ?, 0, 0);", ("emre", generate_password_hash("123"), now, str(binascii.b2a_hex(os.urandom(3)))[2:-1], 5000, ))
 
