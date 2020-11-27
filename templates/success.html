@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block body %}
+<p>
+	{{ message }}
+	<br>
+	You will be redirected to homepage in 2 seconds
+	</br>
+	</p>
+	<script>    
+     window.setTimeout(function(){
+
+       window.location.href = "/";
+
+       }, 2000);
+
+ </script>
+{% endblock %}
