@@ -41,10 +41,10 @@ class choose_poll(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.setDaemon(True)
-        
+
     def terminate(self):
         self._running = False
-        
+
     def run(self):
         global polling_active
         global current_poll_name
@@ -65,7 +65,7 @@ class choose_poll(threading.Thread):
                         current_poll_name = int(row[0]["name"])
                     continue
                 today = datetime.datetime.today().weekday()
-                hour = datetime.datetime.now().hour
+                hour = datetime.datetime.now().hour + 3
                 flag = True
                 for i in range(len(QUIZ)):
                     if (today == QUIZ[i][1] and hour < QUIZ[i][2]) or today < QUIZ[i][1]:
@@ -78,7 +78,7 @@ class choose_poll(threading.Thread):
             else:
                 today = datetime.datetime.today().weekday()
                 hour = datetime.datetime.now().hour
-                if (hour >= QUIZ[current_poll_name][2] and today == QUIZ[current_poll_name][1]):
+                if (hour + 3>= QUIZ[current_poll_name][2] and today == QUIZ[current_poll_name][1]):
                     end_poll()
                     current_poll_name = None
             time.sleep(2)
@@ -87,9 +87,11 @@ thread1 = choose_poll()
 def start_poll(poll):
     global pool
     global current_poll
+    global current_poll_name
     current_poll = [0, 0]
     pool = 0
-    query_db("INSERT INTO quiz (active, name) VALUES (1, ?)", (poll, ))
+    current_poll_name = poll
+    query_db("INSERT INTO quiz (active, name, pool) VALUES (1, ?, ?)", (poll, pool, ))
 
 def end_poll():
     row = query_db("SELECT * FROM quiz WHERE active = 1")
@@ -100,15 +102,18 @@ def end_poll():
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         query_db("UPDATE quiz SET active = 0, date = ?, pool = ? WHERE active = 1", (now ,pool))
 def reward(pollid, result):
-    for i in range(waiting):
-        if waiting[i][0] == pollid:
-            localratio = waiting[i][3][result] /  (waiting[i][3][0] + waiting[i][3][1] + 1) + 1
-            query_db("UPDATE quiz SET result WHERE id = ?", (result, pollid, ))
-            rows = query_db("SELECT * FROM quiz_bets WHERE quiz_id = ? and choice = ?", (pollid, result, ))
-            for row in rows:
-                query_db("UPDATE users SET currency = currency + ? WHERE id = ?", (row["bet"] * localratio, row["user_id"], ))
-            del waiting[i]
-            break
+    row = query_db("SELECT * FROM quiz_bets WHERE quiz_id = ?;", (pollid, ))
+    num = [0,0]
+    for r in row:
+        if r["choice"] == 1:
+            num[1] += 1
+        else:
+            num[0] += 1
+    localratio = (num[not result] + 1) /  (num[0] + num[1] + 1) + 1.1
+    query_db("UPDATE quiz SET result= ? WHERE id = ?", (result, pollid, ))
+    rows = query_db("SELECT * FROM quiz_bets WHERE quiz_id = ? and choice = ?", (pollid, result, ))
+    for row in rows:
+        query_db("UPDATE users SET currency = currency + ? , win = win + 1 WHERE id = ?", (row["bet"] * localratio, row["user_id"], ))
 
 @app.route("/bet", methods=["POST"])
 @login_required
@@ -134,9 +139,9 @@ def bet():
     global pool
     pool += bet
     session["currency"] = currency
-    query_db("UPDATE users SET currency = ? WHERE id = ?", (currency, userid, ))
+    query_db("UPDATE users SET currency = ?, total = total + 1 WHERE id = ?", (currency, userid, ))
     return render_template("error.html", message="Your bet is taken")
-    
+
 @app.route("/mybetjson")
 @login_required
 def mybetjson():
@@ -144,7 +149,7 @@ def mybetjson():
     row = query_db("SELECT id FROM quiz WHERE active = 1")
     rows = query_db("SELECT choice, bet FROM quiz_bets WHERE user_id = ? AND quiz_id = ?", (userid, row[0]["id"], ))
     return jsonify(rows)
-    
+
 
 @app.route("/", methods=["POST", "GET"])
 def index():
@@ -228,18 +233,22 @@ def chat():
                                     query_db("DELETE FROM chat_log Where username = ? order by id desc limit ?;", (variable, val, ))
                                 except:
                                     query_db("DELETE FROM chat_log Where username = ?;", (variable,))
-                        finally:         
+                        finally:
                             global chatlog
                     elif command[0] == "/bet":
                         betid = int(command[1])
                         result = int(command[2])
                         reward(betid, result)
                         username = "root"
-                        message = "Rewards are given " + variable[1] + " " + variable[0]
+                        message = "Rewards are given " + betid + " " + result
                     elif command[0] == "/waiting":
-                        print(waiting)
+                        global waiting
                         username = "root"
                         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        if len(waiting) == 0:
+                            row = query_db("SELECT * FROM quiz WHERE active=0 and pool !=0 ORDER BY id DESC;")
+                            if(len(row)!= 0):
+                                waiting.append([int(row[0]["id"]),int(row[0]["name"]), 1, row[0]["pool"]])
                         for i in range(len(waiting)):
                             message = str(waiting[0]) + " " + str(waiting[1]) + " " + str(waiting[2]) + " " + str(waiting[3])
                             query_db("INSERT INTO chat_log (username, color, message, date) VALUES ( ? , ?, ?, ?);", (username, color, message, now, ))
@@ -255,7 +264,7 @@ def chat():
                                 polling_active = 1
                                 thread1 = choose_poll()
                         message += str(polling_active)
-                                    
+
                 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 query_db("INSERT INTO chat_log (username, color, message, date) VALUES ( ? , ?, ?, ?);", (username, color, message, now, ))
                 rows = query_db("SELECT * FROM (SELECT username, message, date, color FROM chat_log order by id DESC limit ?) ORDER BY date ASC;", (N,))
@@ -279,10 +288,10 @@ def login():
             return render_template("error.html", message="Invalid username or password", redirect="login")
         form = '%Y-%m-%d %H:%M:%S'
         now = datetime.datetime.now().strftime(form)
-        query_db("INSERT INTO login_history (userid, date) VALUES (?, ?)", (row[0]["id"], now, ))
+        query_db("INSERT INTO login_history (userid, date) VALUES (?, ?)", (row[0]["id"], now,  ))
         session["currency"] = row[0]["currency"]
         if (datetime.datetime.strptime(now, form) -datetime.datetime.strptime(row[0]["date"], form)).days >= 1:
-            db.execute("UPDATE users SET date = ?, currency = ? WHERE user_name = ?;", (now, row[0]["currency"] + BONUS, ))
+            query_db("UPDATE users SET date = ?, currency = ? WHERE user_name = ?;", (now, row[0]["currency"] + BONUS, user_name ))
             session["currency"] = row[0]["currency"] + BONUS
         session["user_id"] = row[0]["id"]
         session["user_name"] = user_name
@@ -309,6 +318,7 @@ def chatjson():
 @app.route("/betjson")
 def betjson():
     d = {}
+    global current_poll_name
     if current_poll_name != None:
         cp = current_poll_name
         d = {"name" : QUIZ[current_poll_name][0],
@@ -318,7 +328,7 @@ def betjson():
              "pool": pool
              }
     return jsonify([d])
-        
+
 def errorhandler(e):
     """Handle error"""
     if not isinstance(e, HTTPException):
